@@ -19,8 +19,6 @@ library(ggpubr)
 library(here)
 ```
 
-
-
 ## What we are learning so far {.scrollable}
 
 How to find the "right" tool for the job
@@ -35,7 +33,7 @@ How to find the "right" tool for the job
 
     -   some parameters impact model transfer function, other I/O formatting
 
-# Answer to visual check 
+# Answer to visual check
 
 # My code to find issue and clean data {.scrollable}
 
@@ -91,7 +89,7 @@ site1 <- solarpv(area = 0.1, solar = sierraczosolar)
 
 ## Playing with models {.scrollable}
 
-::: {.concept-box}
+::: concept-box
 We often build models to try different options
 
 **Model inputs**: solar radiation (daily direct and diffuse)
@@ -103,7 +101,7 @@ We often build models to try different options
 
 How would a lower efficiency impact mean power generated?
 
-*eff* – 0.6 instead of default 0.8  
+*eff* – 0.6 instead of default 0.8
 
 try it
 
@@ -126,11 +124,11 @@ site2$mean
 (0.6-0.8)/0.8 * 100
 ```
 
+Declines by 25% between sites AND between parameters- decline in energy is proportional to that parameter
 
 ## Informal Sensitivity Analysis {.scrollable}
 
-What happens when we vary parameters?
-  * Not always obvious when transfer function is non-linear or multi-part
+What happens when we vary parameters? \* Not always obvious when transfer function is non-linear or multi-part
 
 **Informal** - just try varying parameters
 
@@ -146,6 +144,7 @@ What happens when we vary parameters?
 
     -   *runif*,
     -   *rnorm* (sampling from uniform and normal distributions)
+        -   eff = rnorm(mean = 0.6, sd = 0.1, n = 20)
     -   *seq* (for creating a sequence of numbers)
 
 -   Repeating
@@ -199,6 +198,8 @@ site2 <- eff %>% map(~ solarpv(area = 0.1,
 head(site2)
 ```
 
+For each of 20 parameters, gives mean and each month's value- but need to create data structure for sensitivity analysis -\>
+
 ## Data Structures {.scrollable}
 
 -   challenge in sensitivity analysis is often what data structure to use to store the results
@@ -208,19 +209,20 @@ head(site2)
 -   R often returns lists - but not so easy for organization
 
 -   ask yourself what you want to do with the data, then put in a structure that will make this easy
-  -  a data frame is often the best structure for graphing
+
+-   a data frame is often the best structure for graphing
 
 -   e.g two different data frames
 
     -   plot variation in mean annual electricity by *eff*
     -   plot variation in each year due to variation in *eff*
-   
 
 ```{r sen1b, eval=T}
 
 head(str(site2))
 # this is pretty messy - but we can extract a useful data structure,lets say we want
 # just the annual data (not the mean annual time series), and then reformat as a data frame with nice column names
+# map_dfr(): map data frame by row (when you do the function, create a df)
 tmp <- map_dfr(site2, `[`, c("annual"))
 
 # convert from tibble to a data frame
@@ -260,9 +262,9 @@ ggplot(site2df, aes(year, elect, group = year)) +
 
 **Why?**
 
-- Summarizes parameter uncertainty  
-- Highlights interannual trends  
-- Easier comparison across years
+-   Summarizes parameter uncertainty\
+-   Highlights interannual trends\
+-   Easier comparison across years
 
 ## Plot {.scrollable}
 
@@ -332,5 +334,52 @@ Sensitivity is more general - and the first step in uncertainty analysis, but al
 -   practice graphing model output to explore sensitivity
 
 Learn to "play" with models
+
+```{r}
+library(tidyverse)
+
+# first come up with varying values for ethresh
+# if we don't know ethresh exactly , lets try 20 samples
+
+
+ethresh <- runif(20, min = 8500, max = 11500)
+
+# use map from purrr to run model for all values of ethresh
+# notice how map adds the one parameter that is missing from the input list
+
+site2 <- ethresh %>% map(~ solarpv(area = 0.1, 
+  solar = sierraczosolar, clr = "green", 
+  eunit = "kWhr", g = FALSE, etype = "direct", eff = 0.8, ethresh = .x))
+head(site2)
+```
+
+```{r}
+head(str(site2))
+# this is pretty messy - but we can extract a useful data structure,lets say we want
+# just the annual data (not the mean annual time series), and then reformat as a data frame with nice column names
+# map_dfr(): map data frame by row (when you do the function, create a df)
+tmp <- map_dfr(site2, `[`, c("annual"))
+
+# convert from tibble to a data frame
+site2df <- data.frame(year = tmp$annual$year, elect = tmp$annual$elect)
+head(site2df)
+```
+
+![]()
+
+```{r}
+# we also might want an average across parameter uncertainty
+site2_average <- site2df %>%
+  group_by(year) %>%
+  dplyr::summarize(elect = mean(elect))
+
+# now add this to the plot - note that we remove the grouping by using group=1
+ggplot(site2df, aes(year, elect, group = year)) +
+  geom_boxplot(fill = "grey") +
+  labs(y = "Electricity in W") +
+  geom_line(data = site2_average, aes(year, elect, group = 1), col = "violet", lwd=2)
+```
+
+what matters more, uncertainty in ethresh or eff?
 
 # Assignment 3

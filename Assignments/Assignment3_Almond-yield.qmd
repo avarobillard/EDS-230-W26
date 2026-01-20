@@ -108,7 +108,7 @@ Two separate files (or a link to a repository with these files)
 2. a pdf that includes your conceptual model (embed as picture), your workflow for running the model and
 shows how you applied the function to the test climate data (*clim.txt*)
 
-Due January 22 8am50
+Due January 22 8am50 
 # Grading Rubric
 
 Conceptual model (20 pts)

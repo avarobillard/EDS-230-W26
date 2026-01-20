@@ -23,17 +23,15 @@ library(here)
 -   before we get to formal sensitivity anbalysis
 
     -   a bit more practice on data manipulation as part of sensitivity analysis
-    -   building models - making slightly more complex models by adding 'boxes' or submodels 
-    
-## Combined sensitivity analysis
+    -   building models - making slightly more complex models by adding 'boxes' or submodels
 
+## Combined sensitivity analysis
 
 Two main classes of sensitivity analysis
 
-<span style="color:orange;">global:</span>
-simultaneously vary all parameters over possible ranges
+[global:]{style="color:orange;"} simultaneously vary all parameters over possible ranges
 
-<span style="color:orange;">local  one at a time:</span>hold all other parameters content and then vary one parameter at a time
+[local one at a time:]{style="color:orange;"}hold all other parameters content and then vary one parameter at a time
 
 Global is preferred where possible because it accounts for parameter interactions
 
@@ -58,16 +56,17 @@ Two possible approaches
 
 -   sometimes we think of uncertainty as a range of possible values (min, max), where possibility is defined by physics or expert knowledge
 
-* snow albedo can't be greater than 1; 
-* can't have negative efficiency; 
-* tree height limited by hydraulics
-* solar arrays with efficiency less than some value are not marketable
+-   snow albedo can't be greater than 1;
 
--   sometimes we know something about the distribution because we have measurements
-    e.g., efficiency of solar panels measured in lab or field tests; we can use mean and standard deviation to define a normal distribution
+-   can't have negative efficiency;
 
--   sometimes we think of uncertainty as percent deviation from our best guess
-    e.g., we think efficiency is 0.2 but could be ±15%
+-   tree height limited by hydraulics
+
+-   solar arrays with efficiency less than some value are not marketable
+
+-   sometimes we know something about the distribution because we have measurements e.g., efficiency of solar panels measured in lab or field tests; we can use mean and standard deviation to define a normal distribution
+
+-   sometimes we think of uncertainty as percent deviation from our best guess e.g., we think efficiency is 0.2 but could be ±15%
 
 ## Example using *pmap* {.scrollable}
 
@@ -88,7 +87,7 @@ load(here("Data/sierraczosolar_clean.rda"))
 
 # generate samples for both parameters
 nsamples <- 300
-deviation <- 0.15
+deviation <- 0.15 # make this a variable!
 base_thresh <- 20000
 ethresh <- runif(
   min = base_thresh - deviation * base_thresh,
@@ -97,17 +96,19 @@ ethresh <- runif(
 
 eff <- rnorm(mean = 0.6, sd = 0.1, n = nsamples)
 
-# put samples together
+# put samples together- df that varies both
 parms <- cbind.data.frame(eff, ethresh)
 
 # use pmap
 # takes function name and then names of all parameters that don't change
+# runs model for each combo of eff and ethresh
 results <- parms %>% pmap(solarpv,
   area = 20,
   solar = sierraczosolar, clr = "green",
   eunit = "kWhr", g = FALSE, etype = "direct"
 )
 
+# 300 parameter sets, electricity and year and mean for each- can extract mean and link to parameters
 results[[1]]
 length(results)
 
@@ -126,11 +127,11 @@ Lets start with mean annual electricity
 
 We want to look at:
 
-1) uncertainty in output due to both parameters 
-2) how each parameter influences the results
+1)  uncertainty in output due to both parameters
+2)  how each parameter influences the results
 
 ```{r plot_sensitivity, echo=TRUE}
-# plot - pick one of the 2 parameter as a color
+# plot - pick one of the 2 parameter as a color, other as x-axis
 # try switching which parameter used for color
 
 p1 <- ggplot(mean_elect, aes(ethresh, mean, col = eff)) +
@@ -138,6 +139,7 @@ p1 <- ggplot(mean_elect, aes(ethresh, mean, col = eff)) +
   labs(y = "Mean Annual Electricity kWhr/yr", x = "Threshold Radiation (kJ/m2)  \n above which energy production is more efficient")
 p1
 
+# reverse this- color & x-axis choice
 p2 <- ggplot(mean_elect, aes(eff, mean, col = ethresh)) +
   geom_point(cex = 2) +
   labs(y = "Mean Annual Electricity kWhr/yr", x = "Efficiency")
@@ -152,17 +154,18 @@ Is variation due to years big or small relative to parameter uncertainty?
 
 There is **uncertainty** in annual electricity due to both parameters and variation across years **sensitivity** to climate
 
-For complex model outputs and multiple parameters, data structures for analysis and visualization can be tricky - two useful options 
+For complex model outputs and multiple parameters, data structures for analysis and visualization can be tricky - two useful options
 
-1. Reduce output dimensionality - summarize output e.g mean annual electricity - one value per parameter set 
+1.  Reduce output dimensionality - summarize output e.g mean annual electricity - one value per parameter set
 
-2. To deal with multiple parameter, add a "key" to identify parameter set - e.g. run number .e.g we will use a parameter id to do this
+2.  To deal with multiple parameter, add a "key" to identify parameter set - e.g. run number .e.g we will use a parameter id to do this
 
 ```{r annual_uncertainty, echo=TRUE}
 
 # extract annual
 # plot total uncertainty due to both parameters
 # note use of .id to create parm_id so we can link back to parameters
+# unique identifier for each model run!
 tmp <- map_df(results, `[`, c("annual"), .id ="parm_id")
 head(tmp)
 
@@ -208,7 +211,7 @@ save(solar_annual_elect, file = here("Data/annual_elect_solar.rda"))
 
 ```
 
-
+model output- more important to work on efficiency than ethresh! ethresh has more impact in 1953, etc.
 
 # Data structure and Data Manipulation
 
@@ -235,11 +238,12 @@ annual_elect_for <- as.data.frame(matrix(ncol = nsamples, nrow = length(years)))
 annual_elect_for$year <- years
 
 
+# similar to pmap, less efficient
 for (i in 1:nsamples) {
   res <- solarpv(
     area = 20, solar = sierraczosolar,
     clr = "green", eunit = "kWhr", g = FALSE, etype = "direct",
-    ethresh = parms$ethresh[i],
+    ethresh = parms$ethresh[i], # indexing thru parameters
     eff = parms$eff[i]
   )
 
@@ -366,5 +370,7 @@ save(profit_solar, file = here("Data/profit_solar.rda"))
 Notice that compute_profit_frompower uses compute_NPV (so you need to carry over parameters)
 
 What if price increased by a % each year? How would you modify **compute_profit_frompower** to account for that? Or alternatively - what if you wanted to input a different price for each year?
+
+maybe add a multiplicative factor for price based on year input?
 
 With a partner try it...
